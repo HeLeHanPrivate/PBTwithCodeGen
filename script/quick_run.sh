@@ -41,13 +41,61 @@ python -m lcb_runner.runner.main \
     --scenario checkerextend \
     --temperature ${TEMPERATURE} \
     --top_p 0.95 \
-    --max_tokens 16384 \
+    --max_tokens 32768 \
     --stop '<｜end▁of▁sentence｜>' \
     --tensor_parallel_size ${TP} \
     --release_version ${VERSION} \
     --testcaseforrepair "allcase" \
     --num_process_evaluate 24 \
     --repairbase codegeneration \
+    --evaluate
+
+saved_eval_all_file="output/${BASE_MODEL}/Scenario.checkerextend_${N}_${TEMPERATURE}_eval_all.json"
+echo "=============================="
+python -m lcb_runner.evaluation.compute_scores \
+  --eval_all_file ${saved_eval_all_file} | tee output/${BASE_MODEL}/results_checkerextend_${VERSION}.txt
+
+
+
+HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
+python -m lcb_runner.runner.main \
+    --model ${MODEL_NAME} \
+    --n 1 \
+    --codegen_n ${N} \
+    --scenario checkerextend \
+    --temperature ${TEMPERATURE} \
+    --top_p 0.95 \
+    --max_tokens 32768 \
+    --stop '<｜end▁of▁sentence｜>' \
+    --tensor_parallel_size ${TP} \
+    --release_version ${VERSION} \
+    --testcaseforrepair "allcase" \
+    --num_process_evaluate 24 \
+    --repairbase checkerextend \
+    --evaluate
+
+saved_eval_all_file="output/${BASE_MODEL}/Scenario.checkerextend_${N}_${TEMPERATURE}_eval_all.json"
+echo "=============================="
+python -m lcb_runner.evaluation.compute_scores \
+  --eval_all_file ${saved_eval_all_file} | tee output/${BASE_MODEL}/results_checkerextend_${VERSION}.txt
+
+
+
+HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
+python -m lcb_runner.runner.main \
+    --model ${MODEL_NAME} \
+    --n 1 \
+    --codegen_n ${N} \
+    --scenario checkerextend \
+    --temperature ${TEMPERATURE} \
+    --top_p 0.95 \
+    --max_tokens 32768 \
+    --stop '<｜end▁of▁sentence｜>' \
+    --tensor_parallel_size ${TP} \
+    --release_version ${VERSION} \
+    --testcaseforrepair "allcase" \
+    --num_process_evaluate 24 \
+    --repairbase checkerextend \
     --evaluate
 
 saved_eval_all_file="output/${BASE_MODEL}/Scenario.checkerextend_${N}_${TEMPERATURE}_eval_all.json"
