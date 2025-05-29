@@ -162,65 +162,12 @@ class MyPipeline:
                 }
             ),
         }
-    
-    def get_chceker_input_output(self, problem):
-        if problem.metadata.get("func_name", None) is not None:
-            return {
-                "input_output": json.dumps(
-                    {
-                        "inputs": [
-                            t.input + "\n" + t.output
-                            for t in problem.public_test_cases
-                        ],
-                        "outputs": [
-                            json.dumps(True)
-                            for t in problem.public_test_cases
-                        ],
-                        "fn_name": problem.metadata.get("func_name", None),
-                        "platform": self.platform,
-                    }
-                ),
-            }
-        else:
-            return {
-                "input_output": json.dumps(
-                    {
-                        "inputs": [
-                            t.input + "\n\n" + t.output
-                            for t in problem.public_test_cases
-                        ],
-                        "outputs": [
-                            'True'
-                            for t in problem.public_test_cases
-                        ],
-                        "fn_name": problem.metadata.get("func_name", None),
-                        "platform": self.platform,
-                    }
-                ),
-            }
-
-    # def checker_generate(self, f, worker_id, question_content, model_style, code, metadata, prompts_to_outputs, samples, args):
-    #     output_code = ""
-    #     try_times = 0
-    #     fla = True
-    #     while try_times < 3 and fla:
-    #         #print("checker_generate", try_times)
-    #         output_code = self.prompts_to_code(worker_id, question_content, model_style, code, metadata, prompts_to_outputs, format_prompt_checker_generate, extract_code)
-    #         curr_res, curr_metadata = self.put_run_exec(worker_id, samples, output_code, args.timeout)
-    #         if np.all(curr_res):
-    #             fla = False
-    #     return output_code, fla
- 
 
     def repair_code(self, worker_id, question_content, model_style, code, metadata, prompts_to_outputs, samples, args):
         output_code = ""
         try_times = 0
         fla = True
-        
         original_metadata = metadata
-        # original_res, original_metadata = self.put_run_exec(worker_id, samples, code, args.timeout)
-        # if np.all(original_res):
-        #     return code, False
         while try_times < 3 and fla:
             try_times += 1
             #print("repair_code", try_times)
@@ -228,10 +175,6 @@ class MyPipeline:
             curr_res, curr_metadata = self.put_run_exec(worker_id, samples, output_code, args.timeout)
             if np.all(curr_res):
                 fla = False
-            # elif np.sum(curr_res) > np.sum(original_res):
-            #     code = output_code
-            #     original_res = curr_res
-            #     original_metadata = curr_metadata
         if output_code == "":
             output_code = code
         
@@ -285,8 +228,6 @@ class MyPipeline:
     def solve_one_problem(self, worker_id, question_content, code, public_grade, metadata, platform, problem, model_style, args, prompts_to_outputs):
         self.platform = platform
         samples = self.get_public_input_output(problem)
-        # checker_samples = self.get_chceker_input_output(problem)
-        # checker_code, fla = self.checker_generate(worker_id, question_content, model_style, code, metadata, prompts_to_outputs, checker_samples, args)
         checker_extend_code, fla = self.checker_extend(worker_id, question_content, model_style, code, metadata, prompts_to_outputs, samples, args)
         if not public_grade:
             repaired_code, _ = self.repair_code(worker_id, question_content, model_style, checker_extend_code, metadata, prompts_to_outputs, samples, args)
@@ -301,7 +242,7 @@ class MyPipeline:
                 repaired_code, _ = self.repair_code(worker_id, question_content, model_style, checker_extend_code, metadata, prompts_to_outputs, testcase, args)
             else:
                 self.testcase_generation_no_num += 1
-                repaired_code, _ = self.repair_code(worker_id, question_content, model_style, checker_extend_code, '{"message": "The above code is incorrect and got a wrong answer."}', prompts_to_outputs, samples, args)
+                repaired_code, _ = self.repair_code(worker_id, question_content, model_style, checker_extend_code, '{"error_code": "-2", "inputs": "Unknown", "output": "Unknown", "expected": "Unknown"}', prompts_to_outputs, samples, args)
 
         self.prompts_answer_list[worker_id] = repaired_code
         self.active_workers -= 1

@@ -666,6 +666,13 @@ LanguageModelList: list[LanguageModel] = [
         link="model/DeepSeek-R1-Distill-Qwen-14B",
     ),
     LanguageModel(
+        "model/DeepSeek-R1-Distill-Qwen-32B",
+        "DeepSeek-R1-Distill-Qwen-32B",
+        LMStyle.DeepSeekR1,
+        datetime(2025, 1, 20),
+        link="model/DeepSeek-R1-Distill-Qwen-32B",
+    ),
+    LanguageModel(
         "model/DeepSeek-Coder-V2-Lite-Instruct",
         "DeepSeek-Coder-V2-Lite-Instruct",
         LMStyle.LocalAPI,
