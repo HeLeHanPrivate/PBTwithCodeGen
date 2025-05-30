@@ -25,7 +25,7 @@ def main():
     if args.debug:
         print(f"Running with {len(benchmark)} instances in debug mode")
         benchmark = benchmark[:15]
-    # benchmark = benchmark[:20] # debug
+    benchmark = benchmark[:20] # debug
     output_path = get_output_path(model.model_repr, args)
     eval_file = output_path.replace(".json", "_eval.json")
     eval_all_file = output_path.replace(".json", "_eval_all.json")

@@ -43,39 +43,88 @@ class PromptConstants:
 #     return io
 
 
+# def get_check_prompt(question: str, result, metadata):
+#     # v1
+#     ## assumes i/o examples are already truncated!
+#     ## less pressure on storing 10 MB json because on a single large input-output pair
+#     # result_by_test_case = result
+#     # assert len(metadata) == 1, f"metadata = {metadata}"
+#     # metadata = metadata[0]
+#     metadata = json.loads(metadata)
+#     if "error_code" not in metadata:
+#         return ""
+#     if metadata["error_code"] == -1:
+#         # time limit exceeded
+#         message = f"The above code is incorrect and got the following compilation error.\n{metadata['error']}"
+#     elif metadata["error_code"] == -2:
+#         # wrong answer
+#         message = f"The above code is incorrect and got a wrong answer.\nInput: {metadata['inputs']}\nGenerated Output: {metadata['output']}\nExpected: {metadata['expected']}"
+#     elif metadata["error_code"] == -3:
+#         # time limit exceeded
+#         message = f"The above code is incorrect and got time limit exceeded.\n{metadata['error']}\nInput: {metadata['inputs']}\nExpected: {metadata['expected']}"
+#         pass
+#     elif metadata["error_code"] == -4:
+#         # runtime error
+#         if 'inputs' in metadata.keys():
+#             message = f"The above code is incorrect and got a runtime error.\nInput: {metadata['inputs']}\nExpected: {metadata['expected']}\n{metadata['error']}"
+#         else:
+#             message = f"The above code is incorrect and got a runtime error.\nError_Message: {metadata['error_message']}"
+#     elif metadata["error_code"] == -5:
+#         # TestRunnerError
+#         message = f"The above code is incorrect and got a runtime error.\n{metadata['error']}\nError_Message: {metadata['error_message']}"
+#     else:
+#         raise NotImplementedError(
+#             f"metadata['error_code'] = {metadata['error_code']} not implemented || {metadata=}"
+#         )
+#     return message
+
+
 def get_check_prompt(question: str, result, metadata):
     ## assumes i/o examples are already truncated!
     ## less pressure on storing 10 MB json because on a single large input-output pair
     # result_by_test_case = result
     # assert len(metadata) == 1, f"metadata = {metadata}"
     # metadata = metadata[0]
-    metadata = json.loads(metadata)
-    if "error_code" not in metadata:
-        return ""
-    if metadata["error_code"] == -1:
-        # time limit exceeded
-        message = f"The above code is incorrect and got the following compilation error.\n{metadata['error']}"
-    elif metadata["error_code"] == -2:
-        # wrong answer
-        message = f"The above code is incorrect and got a wrong answer.\nInput: {metadata['inputs']}\nGenerated Output: {metadata['output']}\nExpected: {metadata['expected']}"
-    elif metadata["error_code"] == -3:
-        # time limit exceeded
-        message = f"The above code is incorrect and got time limit exceeded.\n{metadata['error']}\nInput: {metadata['inputs']}\nExpected: {metadata['expected']}"
-        pass
-    elif metadata["error_code"] == -4:
-        # runtime error
-        if 'inputs' in metadata.keys():
-            message = f"The above code is incorrect and got a runtime error.\nInput: {metadata['inputs']}\nExpected: {metadata['expected']}\n{metadata['error']}"
+    try:
+        metadata = json.loads(metadata) # Ensure parsing happens here
+    except (json.JSONDecodeError, TypeError):
+        # Handle cases where metadata_str is not a valid JSON string or None
+        # print(f"Warning: Could not parse metadata_str: {metadata_str}")
+        return "Context: No specific error context from previous run available or metadata was not parsable.\n"
+    if "error_code" not in metadata: # Check after successful parsing
+        return "Context: Previous run did not produce a standard error code.\n"
+    
+    message = ""
+    error_code = metadata.get('error_code')
+
+    if error_code == -1: # Compilation Error
+        message = f"Context: The program previously failed with a compilation error.\nDetails: {metadata.get('error', 'N/A')}"
+    elif error_code == -2: # Wrong Answer
+        message = (f"Context: The program previously produced a wrong answer.\n"
+                   f"Input: {metadata.get('inputs', 'N/A')}\n"
+                   f"Generated Output: {metadata.get('output', 'N/A')}\n"
+                   f"Expected Output: {metadata.get('expected', 'N/A')}")
+    elif error_code == -3: # Time Limit Exceeded
+        message = (f"Context: The program previously hit a time limit exceeded.\n"
+                   f"Details: {metadata.get('error', 'N/A')}\n"
+                   f"Input: {metadata.get('inputs', 'N/A')}\n"
+                   f"Expected Output: {metadata.get('expected', 'N/A')}")
+    elif error_code == -4: # Runtime Error
+        if 'inputs' in metadata: # Check if 'inputs' key exists
+             message = (f"Context: The program previously encountered a runtime error.\n"
+                        f"Input: {metadata.get('inputs', 'N/A')}\n"
+                        f"Expected Output: {metadata.get('expected', 'N/A')}\n"
+                        f"Error Details: {metadata.get('error', 'N/A')}") # Assuming 'error' might have more details than 'error_message'
         else:
-            message = f"The above code is incorrect and got a runtime error.\nError_Message: {metadata['error_message']}"
-    elif metadata["error_code"] == -5:
-        # TestRunnerError
-        message = f"The above code is incorrect and got a runtime error.\n{metadata['error']}\nError_Message: {metadata['error_message']}"
+             message = f"Context: The program previously encountered a runtime error.\nError Message: {metadata.get('error_message', 'N/A')}"
+    elif error_code == -5: # TestRunnerError
+        message = (f"Context: The program previously caused a TestRunnerError.\n"
+                   f"Error: {metadata.get('error', 'N/A')}\n"
+                   f"Error Message: {metadata.get('error_message', 'N/A')}")
     else:
-        raise NotImplementedError(
-            f"metadata['error_code'] = {metadata['error_code']} not implemented || {metadata=}"
-        )
-    return message
+        message = f"Context: An unspecified error (code: {error_code}) occurred in a previous run.\n"
+    return message + "\n" if message else "Context: No specific error details found for the given error code.\n"
+
 
 
 def get_generic_question_template_answer(question: str, code, result, metadata):

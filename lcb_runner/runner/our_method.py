@@ -39,6 +39,8 @@ from lcb_runner.prompts.code_generation import format_prompt_generation
 # def format_prompt_generation(question: CodeGenerationProblem, LanguageModelStyle: LMStyle)
 from lcb_runner.prompts.checker_generate import format_prompt_checker_generate
 # def format_prompt_checker_extend(question: str, LanguageModelStyle: LMStyle, code: str, result, samples)
+from lcb_runner.prompts.test_inputer_generation import format_prompt_inputer_generate
+# def format_prompt_input_generator(model_output: str, lmstyle: LMStyle)
 
 from lcb_runner.utils.extraction_utils import extract_code, extract_testcase
 # def extract_code(model_output: str, lmstyle: LMStyle)
@@ -159,6 +161,7 @@ class MyPipeline:
                         for t in problem.public_test_cases
                     ],
                     "fn_name": problem.metadata.get("func_name", None),
+                    "platform": self.platform,
                 }
             ),
         }
@@ -195,32 +198,35 @@ class MyPipeline:
 
 
     def extra_testcase(self, worker_id, question_content, model_style, code, platform, prompts_to_outputs, func_name, problem, args):
+        # direct test input generate
         testcase = self.prompts_to_code(worker_id, question_content, model_style, code, platform, prompts_to_outputs, format_prompt_testcase_generate, extract_testcase)
         if testcase == code:
             testcase = []
         if len(testcase) > 0:
-            return {
-                "input_output": json.dumps(
-                    {
-                        "inputs": [
-                            t['input']
-                            for t in testcase
-                        ] + [
-                            t.input
-                            for t in problem.public_test_cases
-                        ],
-                        "outputs": [
-                            "" # t.output, "The generated data only includes input"
-                            for t in testcase
-                        ] + [
-                            t.output
-                            for t in problem.public_test_cases
-                        ],
-                        "fn_name": func_name,
-                        "platform": self.platform,
-                    }
-                ),
-            }
+            try:
+                inputs = [t['input'] for t in testcase]
+                inputs = sorted(inputs, key=lambda x: len(str(x)), reverse=False)
+                return {
+                    "input_output": json.dumps(
+                        {
+                            "inputs": inputs + [
+                                t.input
+                                for t in problem.public_test_cases
+                            ],
+                            "outputs": [
+                                "" # t.output, "The generated data only includes input"
+                                for t in testcase
+                            ] + [
+                                t.output
+                                for t in problem.public_test_cases
+                            ],
+                            "fn_name": func_name,
+                            "platform": self.platform,
+                        }
+                    ),
+                }
+            except:
+                return ""
         else:
             return ""
 
@@ -249,8 +255,10 @@ class MyPipeline:
         if self.active_workers == 0:
             self.finished.set()
 
+
     def get_train_data(self, worker_id, question_content, code, public_grade, metadata, platform, problem, model_style, args, prompts_to_outputs):
         pass
+
 
     def our_method_pipeline(self, benchmark, model_style, args, check_metadata_list, prompts_to_outputs):
         global run_answer_list

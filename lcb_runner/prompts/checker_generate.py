@@ -107,13 +107,11 @@ def get_deepseek_r1_question_template_answer(question: str, code: str, result, m
 
 
 def format_prompt_checker_generate(
-    question: str, LanguageModelStyle: LMStyle, code: str, result, samples
+    question: str, LanguageModelStyle: LMStyle, code: str, result, metadata
 ) -> str:
     if result:
         # The code is accepted, no need to change anything.
         return ""
-    sample_input = samples["input_output"]["inputs"]
-    sample_output = samples["input_output"]["outputs"]
     if LanguageModelStyle == LMStyle.DeepSeekR1:
         prompt = f"{PromptConstants.SYSTEM_MESSAGE_DEEPSEEK_R1}\n\n{get_deepseek_r1_question_template_answer(question, code, result, metadata)}"
         return prompt
