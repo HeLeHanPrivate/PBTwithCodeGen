@@ -329,8 +329,12 @@ def get_public_sample_results(check_detail_list: list, check_outline_list: list,
                 public_test_cases_result = codegen_results[idx]["public_graded_list"]
                 only_public_test_cases_result = codegen_results[idx]["public_graded_list"]
                 error_num += 1
-        total_num += sum(public_test_cases_result)/len(public_test_cases_result)
-        only_public_total += sum(only_public_test_cases_result)/len(public_test_cases_result)
+        try:
+            total_num += sum(public_test_cases_result)/len(public_test_cases_result)
+            only_public_total += sum(only_public_test_cases_result)/len(public_test_cases_result)
+        except:
+            total_num = 0 
+            only_public_total = 0
         check_detail_list[idx]["public_graded_list"] = public_test_cases_result
         check_detail_list[idx]["only_public_graded_list"] = only_public_test_cases_result
         if "extra_test" in check_detail_list[idx].keys():
@@ -340,8 +344,12 @@ def get_public_sample_results(check_detail_list: list, check_outline_list: list,
                         check_detail_list[idx]['extra_test'] = save_detail['extra_test']
                     else:
                         check_detail_list[idx]['extra_test'] = []
-    check_outline_list[0]["public_pass@1"] = total_num/len(benchmark)
-    check_outline_list[0]["only_public_pass@1"] = only_public_total/len(benchmark)
+    try:
+        check_outline_list[0]["public_pass@1"] = total_num/len(benchmark)
+        check_outline_list[0]["only_public_pass@1"] = only_public_total/len(benchmark)
+    except:
+        check_outline_list[0]["public_pass@1"] = 0
+        check_outline_list[0]["only_public_pass@1"] = 0
     print("public_pass@1", check_outline_list[0]["public_pass@1"], "  only_public_pass@1", check_outline_list[0]["only_public_pass@1"])
     print("error_num", error_num)
     return check_detail_list, check_outline_list

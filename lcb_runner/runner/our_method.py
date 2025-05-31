@@ -39,7 +39,7 @@ from lcb_runner.prompts.code_generation import format_prompt_generation
 # def format_prompt_generation(question: CodeGenerationProblem, LanguageModelStyle: LMStyle)
 from lcb_runner.prompts.checker_generate import format_prompt_checker_generate
 # def format_prompt_checker_extend(question: str, LanguageModelStyle: LMStyle, code: str, result, samples)
-from lcb_runner.prompts.test_inputer_generation import format_prompt_inputer_generate
+from lcb_runner.prompts.test_inputer_generation import format_prompt_inputer_generate, execute_inputer_script
 # def format_prompt_input_generator(model_output: str, lmstyle: LMStyle)
 
 from lcb_runner.utils.extraction_utils import extract_code, extract_testcase
@@ -197,9 +197,19 @@ class MyPipeline:
         return output_code, fla
 
 
-    def extra_testcase(self, worker_id, question_content, model_style, code, platform, prompts_to_outputs, func_name, problem, args):
+    def extra_testcase(self, worker_id, question_content, model_style, code, platform, samples, prompts_to_outputs, func_name, problem, args):
         # direct test input generate
-        testcase = self.prompts_to_code(worker_id, question_content, model_style, code, platform, prompts_to_outputs, format_prompt_testcase_generate, extract_testcase)
+        # testcase = self.prompts_to_code(worker_id, question_content, model_style, code, platform, prompts_to_outputs, format_prompt_testcase_generate, extract_testcase)
+        
+        # inputer generate
+        all_executions_successful = False
+        retry_times = 0
+        testcase = []
+        while all_executions_successful is False and retry_times < 3:
+            testcase_inputer = self.prompts_to_code(worker_id, question_content, model_style, code, (platform, samples), prompts_to_outputs, format_prompt_inputer_generate, extract_code)
+            testcase, all_executions_successful = execute_inputer_script(testcase_inputer, 50, 1)
+            retry_times += 1
+        
         if testcase == code:
             testcase = []
         if len(testcase) > 0:
@@ -238,7 +248,7 @@ class MyPipeline:
         if not public_grade:
             repaired_code, _ = self.repair_code(worker_id, question_content, model_style, checker_extend_code, metadata, prompts_to_outputs, samples, args)
         else:
-            testcase = self.extra_testcase(worker_id, question_content, model_style, code, platform, prompts_to_outputs, problem.metadata.get("func_name", None), problem, args)
+            testcase = self.extra_testcase(worker_id, question_content, model_style, code, platform, samples, prompts_to_outputs, problem.metadata.get("func_name", None), problem, args)
             if testcase != "":
                 curr_res, curr_metadata = self.put_run_exec(worker_id, testcase, checker_extend_code, args.timeout)
                 if not np.all(curr_res):

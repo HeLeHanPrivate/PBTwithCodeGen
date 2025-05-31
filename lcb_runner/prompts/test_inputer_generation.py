@@ -2,6 +2,8 @@ import json
 import re # For HumanEval parsing
 from enum import Enum # Import Enum
 import time # To suggest time-based random seeds
+import subprocess
+import sys
 
 from lcb_runner.lm_styles import LMStyle
 from lcb_runner.benchmarks.code_generation import Test, Platform
@@ -119,9 +121,78 @@ def get_deepseek_r1_dynamic_input_generation_prompt(question: str, example_input
     return prompt
 
 
+
+def execute_inputer_script(script_code: str, num_executions: int = 5, timeout_seconds: int = 1) -> tuple[list[str], bool]:
+    """
+    Executes the LLM-generated inputer script multiple times and collects its outputs.
+
+    Args:
+        script_code: The Python code string for the inputer script.
+        num_executions: The number of times to run the script.
+        timeout_seconds: Timeout for each execution of the script.
+
+    Returns:
+        A tuple: (list_of_generated_inputs, success_flag)
+        The list contains successfully generated input strings.
+        The success_flag is False if any execution resulted in a runtime error or timeout,
+        indicating the inputer script itself might be flawed. Otherwise, True.
+    """
+    generated_inputs = []
+    all_executions_successful = True
+
+    if "import random" not in script_code:
+        script_code = "import random\n" + script_code
+    if "import time" not in script_code:
+        script_code = "import time\n" + script_code
+    if "import json" not in script_code and "json.dumps" in script_code : # If LeetCode style might need it
+         script_code = "import json\n" + script_code
+
+    for i in range(num_executions):
+        try:
+            # Execute the script in a separate process for isolation and timeout
+            # Using sys.executable ensures we use the same Python interpreter
+            process = subprocess.run(
+                [sys.executable, "-c", script_code],
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False # Do not raise CalledProcessError on non-zero exit codes
+            )
+
+            if process.returncode == 0:
+                output = process.stdout.strip()
+                if output: # Ensure there is some output
+                    generated_inputs.append({"input": output, "output": ""})
+                else:
+                    print(f"Warning: Inputer script execution {i+1} produced no output.")
+                    # Optionally, treat no output as an error:
+                    # all_executions_successful = False
+                    # break
+            else:
+                print(f"Error: Inputer script execution {i+1} failed with return code {process.returncode}.")
+                print(f"Stderr: {process.stderr.strip()}")
+                all_executions_successful = False
+                break # Stop on first error
+
+        except subprocess.TimeoutExpired:
+            print(f"Error: Inputer script execution {i+1} timed out after {timeout_seconds} seconds.")
+            all_executions_successful = False
+            break
+        except Exception as e:
+            print(f"Error: An unexpected error occurred during inputer script execution {i+1}: {e}")
+            all_executions_successful = False
+            break
+        time.sleep(0.01) # Small delay to ensure different millisecond seeds if runs are very fast
+
+    return generated_inputs, all_executions_successful
+
+
+
 def format_prompt_inputer_generate(
-    question: str, LanguageModelStyle: LMStyle, code: str, platform: Platform, samples: dict
+    question: str, LanguageModelStyle: LMStyle, code: str, results, platform_and_samples
 ) -> str:
+    platform = platform_and_samples[0]
+    samples = platform_and_samples[1]
     input_sample_str = str(samples["input_output"]["inputs"][0])
 
     if LanguageModelStyle == LMStyle.DeepSeekR1:
