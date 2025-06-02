@@ -7,7 +7,7 @@ vis/
 model
 .ipynb_checkpoints/
 script/**
-!script/quick_run.sh
+!script/*.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

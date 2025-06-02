@@ -20,9 +20,11 @@ pip install -r requirements.txt
 
 
 
+
+
 ## Quick Start
 
-1. For running the inference, change model name, path or API KEY in [./lcb_runner/lm_styles.py](./lcb_runner/lm_styles.py)
+1. For running the inference, change model name, path or API KEY in [./lcb_runner/lm_styles.py](./lcb_runner/lm_styles.py) and change data path in [./lcb_runner/benchmarks/code_generation.py(line_142)](./lcb_runner/benchmarks/code_generation.py#L142)
 
 2. Use the following command to perform code generation:
 
@@ -32,6 +34,19 @@ bash script/quick_run.sh [GPU_NUMS, default=1] [MODEL_NAME in lm_styles.py, defa
 
 
 3. Please check the [./lcb_runner/runner/parser.py](./lcb_runner/runner/parser.py) file and the [./script/quick_run.sh](./script/quick_run.sh) file for more details on the flags.
+
+
+
+## Local Execution Requirements
+
+**Note:** The following requirements apply if you are running the model locally and not through an API.
+
+Local execution of this model relies on the **vLLM library**.
+
+*   **GPU Requirement:**
+*   A minimum of **1 GPU** is required to run the model.
+*   For optimal performance, running on a **single NVIDIA A100 GPU** is recommended.
+*   **Supported GPU Count:** The current configuration supports execution on **1 to 8 GPUs**.
 
 
 

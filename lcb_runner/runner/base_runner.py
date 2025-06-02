@@ -126,8 +126,12 @@ class BaseRunner(ABC):
         exdirname = ""
         if str(self.args.release_version) == "humaneval" or str(self.args.release_version) == "codecontests" or str(self.args.release_version) == "mbpp":
             exdirname = "----" + str(self.args.release_version)
+        if self.args.repairbase == Scenario.selfrepair:
+            testcase = f"_{self.args.testcaseforrepair}"
+        else:
+            testcase = ""
         with open(
-            f"output/{self.model.model_repr}{exdirname}/{self.args.repairbase}_{self.args.codegen_n}_{self.args.temperature}_eval_all.json"
+            f"output/{self.model.model_repr}{exdirname}/{self.args.repairbase}{testcase}_{self.args.codegen_n}_{self.args.temperature}_eval_all.json"
         ) as f:
             check_metadata_list = json.load(f)
 

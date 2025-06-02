@@ -29,17 +29,6 @@ from lcb_runner.lm_styles import LMStyle
 
 class PromptConstants:
     
-    # SYSTEM_MESSAGE_DEEPSEEK_R1 = (
-    #     "<｜begin▁of▁sentence｜>A conversation between User and Assistant. "
-    #     #"The user gives a error program, and the Assistant needs to locate the error by adding additional checker code in the Python program to locate the error and actively throw error logs to prevent Wrong Answer and Runtime Errer. "
-    #     #"The user gives a error program, and the Assistant needs to locate the error by adding additional checker (such as 'assert ...' or 'raise ...Error') in the Python program to locate the error and actively throw error logs to prevent Wrong Answer and Runtime Errer. "
-    #     #"The user gives a error program and a wrong answer testcase, and the Assistant needs to locate the error by adding additional checker (such as 'assert ...', 'try ... except ...' or 'raise ...') in the Python program to prevent Wrong Answer and Runtime Errer by actively throw error with logs. "
-    #     #"The user gives a error program and a wrong answer testcase, and the Assistant needs to add validation checks or expand cross-verification (using a less efficient but more reliable method) to the original program, ensuring that the program can detect errors even in the absence of an expected answer, and actively throw exceptions instead of terminating normally with incorrect output. "
-    #     #"The user provides a problem description and a program. The Assistant needs to enhance the original program by adding validation checks or expanding cross-verification (using a less efficient but more reliable method, unrestricted by time limits) before the program outputs its answer. This transforms the program into a Checker similar to those used on Online Judge platforms, ensuring the following conditions: If the verification passes or cross-verification confirms correctness, output the original answer. Otherwise, throw an exception. This allows users to immediately determine whether the program is correct after inputting a test case, without relying on an external expected answer. The program should actively signal errors through exceptions rather than terminating normally with potentially incorrect output. Please note that you do not need to correct the code or solve the problem, but rather determine the correctness of the code."
-    #     "The user provides a problem description and a program. The Assistant needs to enhance the original program by adding property-based verification before the program outputs its answer, ensuring the following conditions: If the property-based verification passes, output the original answer. Otherwise, throw an AssertError. This allows users to immediately determine whether the program is correct after inputting a test case, without relying on an external expected answer. Please note that you do not need to correct the code or solve the problem, but rather determine the correctness of the code by adding property-based verification."
-    #     "The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. "
-    #     "The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think> <answer> answer here </answer>.<｜User｜>"
-    # )
     SYSTEM_MESSAGE_DEEPSEEK_R1 = (
         "<｜begin of sentence｜>A conversation between User and Assistant. "
         "The user provides a problem description and a Python program. The Assistant's primary goal is to **instrument the provided program with property-based verification checks**. "
@@ -55,7 +44,43 @@ class PromptConstants:
     )
     
     FORMATTING_WITHOUT_STARTER_CODE = "Enclose your code within delimiters as follows."
+    
+    # System message for DeepSeek-Coder (v1/v2 instruct series) for property checking
+    # We will combine this with the detailed task instruction in the user prompt
+    SYSTEM_MESSAGE_DEEPSEEK_CODER_CHECKER = (
+        "You are an AI programming assistant, utilizing the DeepSeek Coder model, "
+        "developed by DeepSeek Company. Your task is to help a user by instrumenting "
+        "their Python program with property-based verification checks based on a "
+        "problem description. You should NOT fix bugs or change the core logic. "
+        "Your goal is to make the program self-verifying: output the original result "
+        "if properties hold, or throw an AssertError if a property is violated."
+    )
 
+    # System message for CodeQwen Instruct for property checking
+    # CodeQwen uses a specific chat format
+    SYSTEM_MESSAGE_CODEQWEN_CHECKER_SYSTEM_TAG = "<|im_start|>system"
+    SYSTEM_MESSAGE_CODEQWEN_CHECKER_CONTENT = (
+        "You are a helpful AI programming assistant. Your primary goal is to instrument the "
+        "provided Python program with property-based verification checks based on the problem description. "
+        "These checks should be inserted before the program would normally return its result. "
+        "The enhanced program must: 1. If all properties pass, output its original computed answer. "
+        "2. If any property fails, throw an `AssertError`. "
+        "Do NOT attempt to fix bugs or alter core logic. Focus on adding robust property checks."
+    )
+    SYSTEM_MESSAGE_CODEQWEN_CHECKER_END_TAG = "<|im_end|>"
+    SYSTEM_MESSAGE_CODEQWEN_CHECKER_USER_TAG = "\n<|im_start|>user"
+    # The actual user prompt will follow this
+
+
+
+def get_metadata(put_run_exec, worker_id, samples, output_code, timeout, default_feedback):
+    curr_res, curr_metadata = put_run_exec(worker_id, samples, output_code, timeout)
+    import numpy as np
+    if not np.all(curr_res):
+        return curr_metadata
+    else:
+        return default_feedback
+        
 
 def check_testtype(testtype, platform):
     if type(testtype) is not str:
@@ -83,6 +108,7 @@ def check_testtype(testtype, platform):
         if platform == 'codeforces' or platform == 'atcoder':
             return True
     return False
+
 
 
 def get_check_prompt(question: str, result, metadata):
@@ -248,8 +274,146 @@ def get_deepseek_r1_question_template_answer(question: str, code: str, result, m
     user_prompt += "Remember to place your reasoning within `<think></think>` tags and the final enhanced code within `<answer>\n```python\n...\n```\n</answer>` tags."
     user_prompt += f"<｜Assistant｜>"
     return user_prompt
+
+
+
+def get_deepseek_coder_question_template_answer(question: str, code: str, result, metadata):
+    # This prompt is for models like DeepSeek-Coder-Instruct (v1, v2)
+    # It doesn't use the <think>/<answer> tags like DeepSeek-R1
+
+    user_prompt_content = (
+        "Your task is to enhance the given Python program by embedding property-based verification checks. "
+        "These checks should be derived from the problem description. The goal is to make the program self-verifying: "
+        "it should output its original result if all properties hold for the given input, or throw an `AssertError` if any property is violated. "
+        "Do NOT modify the original problem-solving logic or fix any bugs. Focus solely on adding verification code. "
+        "Think about what properties the output (and intermediate states, if relevant) should satisfy based on the problem description.\n\n"
+        "For example:\n"
+        "### Problem Description Example:\n"
+        "Write a function `PrimeFactorization(n)` that returns a list of prime factors of `n`.\n\n"
+        "### Example Original Code:\n"
+        "```python\n"
+        "def PrimeFactorization(n):\n"
+        "    i = 2\n"
+        "    a = []\n"
+        "    while i * i <= n:\n"
+        "        if (n // i) * i == n:\n"
+        "            n = n // i\n"
+        "            a.append(i)\n"
+        "        else:\n" # Corrected example bug from your R1 prompt
+        "            i += 1 \n"
+        "    if n > 1:\n"
+        "        a.append(n)\n"
+        "    return a\n"
+        "```\n\n"
+        "### Example Your Enhanced Code (with Property Verification):\n"
+        "```python\n"
+        "def PrimeFactorization(n_orig):\n"
+        "    n = n_orig\n"
+        "    i = 2\n"
+        "    a = []\n"
+        "    while i * i <= n:\n"
+        "        if (n // i) * i == n:\n"
+        "            n = n // i\n"
+        "            a.append(i)\n"
+        "        else:\n"
+        "            i += 1\n"
+        "    if n > 1:\n"
+        "        a.append(n)\n\n"
+        "    # Property Verification (Checker)\n"
+        "    product_of_factors = 1\n"
+        "    for factor in a:\n"
+        "        product_of_factors *= factor\n"
+        "    assert product_of_factors == n_orig, f\"Product of factors {product_of_factors} does not equal original number {n_orig}\"\n\n"
+        "    return a\n"
+        "```\n"
+        "End of the Example.\n\n"
+    )
+
+    user_prompt_content += f"Now, consider the following problem and code:\n\n"
+    user_prompt_content += f"### Problem Description:\n{question}\n\n"
+    user_prompt_content += f"### Original Code:\n```python\n{code}\n```\n\n"
+
+    error_context_message = get_check_prompt(question, result, metadata)
+    if error_context_message and "No specific error" not in error_context_message : # Only add if there's a real error context
+        user_prompt_content += f"### Context from a Previous Run (if available, for understanding potential weaknesses - do NOT just fix this specific error):\n{error_context_message}\n\n"
+
+    user_prompt_content += "Please provide ONLY the entire enhanced Python program with embedded property-based verification, enclosed in a single ```python ... ``` block. "
+    user_prompt_content += "Do not add any explanations before or after the code block."
+
+    prompt = f"### Instruction:\n{user_prompt_content}\n\n" # user_prompt_content now contains the detailed task.
+    prompt += f"### Response:\n" # Model should start its code block after this.
+    return prompt
+
+
+
+
+def get_codeqwen_instruct_question_template_answer(question: str, code: str, result, metadata):
+    # This prompt is for CodeQwen Instruct, which uses <|im_start|> and <|im_end|>
+
+    user_prompt_content = (
+        "Your task is to enhance the given Python program by embedding property-based verification checks. "
+        "These checks should be derived from the problem description. The goal is to make the program self-verifying: "
+        "it should output its original result if all properties hold for the given input, or throw an `AssertError` if any property is violated. "
+        "Do NOT modify the original problem-solving logic or fix any bugs. Focus solely on adding verification code. "
+        "Think about what properties the output (and intermediate states, if relevant) should satisfy based on the problem description.\n\n"
+        "For example:\n"
+        "### Problem Description Example:\n"
+        "Write a function `PrimeFactorization(n)` that returns a list of prime factors of `n`.\n\n"
+        "### Example Original Code:\n"
+        "```python\n"
+        "def PrimeFactorization(n):\n"
+        "    i = 2\n"
+        "    a = []\n"
+        "    while i * i <= n:\n"
+        "        if (n // i) * i == n:\n"
+        "            n = n // i\n"
+        "            a.append(i)\n"
+        "        else:\n" # Corrected example bug
+        "            i += 1 \n"
+        "    if n > 1:\n"
+        "        a.append(n)\n"
+        "    return a\n"
+        "```\n\n"
+        "### Example Your Enhanced Code (with Property Verification):\n"
+        "```python\n"
+        "def PrimeFactorization(n_orig):\n"
+        "    n = n_orig\n"
+        "    i = 2\n"
+        "    a = []\n"
+        "    while i * i <= n:\n"
+        "        if (n // i) * i == n:\n"
+        "            n = n // i\n"
+        "            a.append(i)\n"
+        "        else:\n"
+        "            i += 1\n"
+        "    if n > 1:\n"
+        "        a.append(n)\n\n"
+        "    # Property Verification (Checker)\n"
+        "    product_of_factors = 1\n"
+        "    for factor in a:\n"
+        "        product_of_factors *= factor\n"
+        "    assert product_of_factors == n_orig, f\"Product of factors {product_of_factors} does not equal original number {n_orig}\"\n\n"
+        "    return a\n"
+        "```\n"
+        "End of the Example.\n\n"
+    )
+
+    user_prompt_content += f"Now, consider the following problem and code:\n\n"
+    user_prompt_content += f"### Problem Description:\n{question}\n\n"
+    user_prompt_content += f"### Original Code:\n```python\n{code}\n```\n\n"
+
+    error_context_message = get_check_prompt(question, result, metadata)
+    if error_context_message and "No specific error" not in error_context_message : # Only add if there's a real error context
+        user_prompt_content += f"### Context from a Previous Run (if available, for understanding potential weaknesses - do NOT just fix this specific error):\n{error_context_message}\n\n"
+
+    user_prompt_content += "Please provide ONLY the entire enhanced Python program with embedded property-based verification, enclosed in a single ```python ... ``` block. "
+    user_prompt_content += "Do not add any explanations before or after the code block."
+
+    prompt = f"{PromptConstants.SYSTEM_MESSAGE_CODEQWEN_CHECKER_USER_TAG}\n{user_prompt_content}<|im_end|>\n<|im_start|>assistant\n"
+    # The model should start its code generation after this.
+    return prompt
     
-    
+
 
 def format_prompt_checker_extend(
     question: str, LanguageModelStyle: LMStyle, code: str, result, metadata
@@ -260,10 +424,24 @@ def format_prompt_checker_extend(
     if LanguageModelStyle == LMStyle.DeepSeekR1:
         prompt = f"{PromptConstants.SYSTEM_MESSAGE_DEEPSEEK_R1}\n\n{get_deepseek_r1_question_template_answer(question, code, result, metadata)}"
         return prompt
+    elif LanguageModelStyle == LMStyle.DeepSeekCodeInstruct: # For DeepSeek-Coder-V2 etc.
+        system_message = PromptConstants.SYSTEM_MESSAGE_DEEPSEEK_CODER_CHECKER
+        user_content = get_deepseek_coder_question_template_answer(question, code, result, metadata)
+        # Typical format: System\nUser_Content\nAssistant_Marker (if any)
+        prompt = f"{system_message}\n\n{user_content}" # Response marker is in user_content
+        return prompt
+    elif LanguageModelStyle == LMStyle.CodeQwenInstruct: # For Qwen2.5-Coder etc.
+        # CodeQwen's system message needs to be constructed carefully with its user message part
+        system_part = f"{PromptConstants.SYSTEM_MESSAGE_CODEQWEN_CHECKER_SYSTEM_TAG}\n{PromptConstants.SYSTEM_MESSAGE_CODEQWEN_CHECKER_CONTENT}{PromptConstants.SYSTEM_MESSAGE_CODEQWEN_CHECKER_END_TAG}"
+        user_and_assistant_part = get_codeqwen_instruct_question_template_answer(question, code, result, metadata)
+        prompt = f"{system_part}{user_and_assistant_part}" # user_and_assistant_part already starts with user tag and ends with assistant tag
+        return prompt
     else:
         raise NotImplementedError(
             f"LanguageModelStyle {LanguageModelStyle} not implemented"
         )
+
+
 
 
 def test():

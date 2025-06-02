@@ -192,8 +192,12 @@ def main():
             exdirname = ""
             if str(args.release_version) == "humaneval" or str(args.release_version) == "codecontests" or str(args.release_version) == "mbpp":
                 exdirname = "----" + str(args.release_version)
+            if args.repairbase == Scenario.selfrepair:
+                testcase = f"_{args.testcaseforrepair}"
+            else:
+                testcase = ""
             with open(
-                f"output/{model.model_repr}{exdirname}/{args.repairbase}_{args.codegen_n}_{args.temperature}_eval_all.json"
+                f"output/{model.model_repr}{exdirname}/{args.repairbase}{testcase}_{args.codegen_n}_{args.temperature}_eval_all.json"
             ) as f:
                 code_gen_evals = json.load(f)
             original_code_lists = [
@@ -232,7 +236,7 @@ def main():
         if args.scenario == Scenario.codegeneration or args.scenario == Scenario.testcasegeneration or args.scenario == Scenario.checkerextend or args.scenario == Scenario.selfrepair:
             if all_benchmark is None:
                 all_benchmark, format_prompt = build_prompt_benchmark(args)
-                # all_benchmark = all_benchmark[:15] # debug
+                # all_benchmark = all_benchmark[:20] # debug
             save_eval_results, metrics = get_public_sample_results(save_eval_results, metrics, all_benchmark, save_results, check_metadata_list)
         
         with open(eval_file, "w") as f:

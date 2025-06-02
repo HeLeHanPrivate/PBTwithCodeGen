@@ -7,43 +7,13 @@ import time
 import multiprocessing
 
 from lcb_runner.evaluation.compute_code_generation_metrics import check_correctness
-# print(
-#     check_correctness(
-#         {
-#             "input_output": json.dumps(
-#                 {
-#                     "inputs": [
-#                         json.dumps([1] * 100000)
-#                         + "\n"
-#                         + json.dumps([100000, -100000] * (100000 // 2))
-#                     ],
-#                     "outputs": [json.dumps([100000, 0] * (100000 // 2))],
-#                     "fn_name": "mostFrequentIDs",
-#                 }
-#             )
-#         },
-#         "class Solution:\n    def mostFrequentIDs(self, nums: List[int], freq: List[int]) -> List[int]:\n        from collections import defaultdict\n        \n        # Count of each ID\n        count = defaultdict(int)\n        # How many IDs exist for a given frequency\n        freq_of_count = defaultdict(int)\n        \n        max_freq = 0\n        ans = []\n        \n        for i in range(len(nums)):\n            x = nums[i]\n            change = freq[i]\n            \n            old_freq = count[x]\n            new_freq = old_freq + change\n            \n            # If there was an old frequency, decrease its usage\n            if old_freq > 0:\n                freq_of_count[old_freq] -= 1\n                if freq_of_count[old_freq] == 0:\n                    del freq_of_count[old_freq]\n            \n            # Update with the new frequency\n            count[x] = new_freq\n            freq_of_count[new_freq] += 1\n            \n            # Update max_freq if needed\n            if new_freq > max_freq:\n                max_freq = new_freq\n            \n            # If the collection at max_freq is empty, reduce max_freq until we find a non-empty bin\n            while max_freq > 0 and max_freq not in freq_of_count:\n                max_freq -= 1\n            \n            # If the collection is empty, max_freq will be 0\n            ans.append(max_freq)\n        \n        return ans",
-#         6,
-#         debug=True,
-#     )
-# )
-# def check_correctness(sample, code_str, timeout, debug=True)
-
 from lcb_runner.prompts.self_repair import format_prompt_self_repair
-# def format_prompt_self_repair(question: str, LanguageModelStyle: LMStyle, code, result, metadata)
-from lcb_runner.prompts.checker_extend import format_prompt_checker_extend
-# def format_prompt_checker_extend(question: str, LanguageModelStyle: LMStyle, code: str, result, metadata)
+from lcb_runner.prompts.checker_extend import format_prompt_checker_extend, get_metadata
 from lcb_runner.prompts.test_case_generation import format_prompt_testcase_generate
-# def format_prompt_testcase_generate(question: str, LanguageModelStyle: LMStyle, code: str, result, platform: Platform)
 from lcb_runner.prompts.code_generation import format_prompt_generation
-# def format_prompt_generation(question: CodeGenerationProblem, LanguageModelStyle: LMStyle)
 from lcb_runner.prompts.checker_generate import format_prompt_checker_generate
-# def format_prompt_checker_extend(question: str, LanguageModelStyle: LMStyle, code: str, result, samples)
 from lcb_runner.prompts.test_inputer_generation import format_prompt_inputer_generate, execute_inputer_script
-# def format_prompt_input_generator(model_output: str, lmstyle: LMStyle)
-
 from lcb_runner.utils.extraction_utils import extract_code, extract_testcase
-# def extract_code(model_output: str, lmstyle: LMStyle)
 
 
 run_answer_list = []
@@ -95,12 +65,14 @@ class MyPipeline:
         global run_answer_list
         run_answer_list = []
         self.run_answer_wait_flag = "Waiting Multiprocessing.Pool Answer"
+        self.default_error = '{"error_code": "-2"}'
         self.finished = threading.Event()
         self.thread_num = args.num_process_evaluate
         self.multiprocess_num = args.num_process_evaluate
         self.active_workers = 0
-        self.testcase_generation_yes_num = 0
-        self.testcase_generation_no_num = 0
+        self.testcase_generation_num = 0
+        self.property_generation_num = 0
+        self.no_public_tescase_num = 0
     
     
     def prompts_to_code(self, worker_id, question_content, model_style, code, metadata, prompts_to_outputs, format_prompt, extract_func):
@@ -149,42 +121,56 @@ class MyPipeline:
     
 
     def get_public_input_output(self, problem):
-        return {
+        inputs_outputs_pairs = sorted(problem.public_test_cases, key=lambda x: len(str(x.input)), reverse=False)
+        public_input_output = {
             "input_output": json.dumps(
                 {
                     "inputs": [
                         t.input
-                        for t in problem.public_test_cases
+                        for t in inputs_outputs_pairs
                     ],
                     "outputs": [
                         t.output
-                        for t in problem.public_test_cases
+                        for t in inputs_outputs_pairs
                     ],
                     "fn_name": problem.metadata.get("func_name", None),
                     "platform": self.platform,
                 }
             ),
         }
+        if len(problem.public_test_cases) == 0:
+            self.no_public_tescase_num += 1
+            # print("no_public_tescase_num", self.no_public_tescase_num) # debug
+        return public_input_output
 
-    def repair_code(self, worker_id, question_content, model_style, code, metadata, prompts_to_outputs, samples, args):
+    def repair_code(self, worker_id, question_content, model_style, code, metadata, prompts_to_outputs, samples, use_original_metadata, args):
         output_code = ""
         try_times = 0
         fla = True
-        original_metadata = metadata
-        while try_times < 3 and fla:
+        if use_original_metadata:
+            original_metadata = metadata
+        else:
+            current_metadata = get_metadata(self.put_run_exec, worker_id, samples, code, args.timeout, self.default_error)
+            original_metadata = current_metadata
+        original_code = code
+        while try_times < 5 and fla:
             try_times += 1
             #print("repair_code", try_times)
-            output_code = self.prompts_to_code(worker_id, question_content, model_style, code, original_metadata, prompts_to_outputs, format_prompt_self_repair, extract_code)
+            output_code = self.prompts_to_code(worker_id, question_content, model_style, original_code, original_metadata, prompts_to_outputs, format_prompt_self_repair, extract_code)
             curr_res, curr_metadata = self.put_run_exec(worker_id, samples, output_code, args.timeout)
+            if output_code != "" and not use_original_metadata:
+                original_metadata = curr_metadata
+                original_code = output_code
             if np.all(curr_res):
                 fla = False
         if output_code == "":
-            output_code = code
+            output_code = original_code
         
         return output_code, fla
 
 
     def checker_extend(self, worker_id, question_content, model_style, code, metadata, prompts_to_outputs, samples, args):
+        # A simple equivalent implementation of generating pbt, verifying pbt then merge code -> generating merged code then verifying
         output_code = ""
         try_times = 0
         fla = True
@@ -193,7 +179,12 @@ class MyPipeline:
             output_code = self.prompts_to_code(worker_id, question_content, model_style, code, metadata, prompts_to_outputs, format_prompt_checker_extend, extract_code)
             curr_res, curr_metadata = self.put_run_exec(worker_id, samples, output_code, args.timeout)
             if "error_code" not in curr_metadata.keys() or curr_metadata["error_code"] != -2:
-                fla = False
+                if output_code != "":
+                    fla = False
+        if output_code == "":
+            output_code = code
+        if "assert" in output_code or "raise" in output_code:
+            self.property_generation_num += 1
         return output_code, fla
 
 
@@ -246,19 +237,14 @@ class MyPipeline:
         samples = self.get_public_input_output(problem)
         checker_extend_code, fla = self.checker_extend(worker_id, question_content, model_style, code, metadata, prompts_to_outputs, samples, args)
         if not public_grade:
-            repaired_code, _ = self.repair_code(worker_id, question_content, model_style, checker_extend_code, metadata, prompts_to_outputs, samples, args)
+            repaired_code, _ = self.repair_code(worker_id, question_content, model_style, checker_extend_code, metadata, prompts_to_outputs, samples, True, args)
         else:
             testcase = self.extra_testcase(worker_id, question_content, model_style, code, platform, samples, prompts_to_outputs, problem.metadata.get("func_name", None), problem, args)
             if testcase != "":
-                curr_res, curr_metadata = self.put_run_exec(worker_id, testcase, checker_extend_code, args.timeout)
-                if not np.all(curr_res):
-                    self.testcase_generation_yes_num += 1
-                else:
-                    self.testcase_generation_no_num += 1
-                repaired_code, _ = self.repair_code(worker_id, question_content, model_style, checker_extend_code, metadata, prompts_to_outputs, testcase, args)
+                self.testcase_generation_num += 1
+                repaired_code, _ = self.repair_code(worker_id, question_content, model_style, checker_extend_code, None, prompts_to_outputs, testcase, False, args)
             else:
-                self.testcase_generation_no_num += 1
-                repaired_code, _ = self.repair_code(worker_id, question_content, model_style, checker_extend_code, '{"error_code": "-2", "inputs": "Unknown", "output": "Unknown", "expected": "Unknown"}', prompts_to_outputs, samples, args)
+                repaired_code, _ = self.repair_code(worker_id, question_content, model_style, checker_extend_code, self.default_error, prompts_to_outputs, samples, True, args)
 
         self.prompts_answer_list[worker_id] = repaired_code
         self.active_workers -= 1
@@ -318,6 +304,9 @@ class MyPipeline:
                                 prompts_to_outputs,
                             )
                             outputs[problem_idx][code_idx] = "```\n" + outputs[problem_idx][code_idx] + "\n```"
+                            worker_id += 1
+                            self.prompts_answer_list.append("")
+                            run_answer_list.append("")
                         else:
                             t = threading.Thread(
                                 target=self.solve_one_problem, 
@@ -425,6 +414,6 @@ class MyPipeline:
                 code_idx = prompt_index_to_code_idx[prompt_idx]
                 outputs[question_idx][code_idx] = "```\n" + output + "\n```"
         
-        print("extra_test_yes=", self.testcase_generation_yes_num, "extra_test_no=", self.testcase_generation_no_num)
+        print("testcase_inputer_generation_num=", self.testcase_generation_num, "property_generation_num=", self.property_generation_num)
         
         return outputs

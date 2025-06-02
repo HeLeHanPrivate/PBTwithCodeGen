@@ -127,125 +127,129 @@ def compute_scores(args):
     easy_corrects = [sum(x["graded_list"]) for x in results if x["difficulty"] == "easy"]
     med_corrects = [sum(x["graded_list"]) for x in results if x["difficulty"] == "medium"]
     hard_corrects = [sum(x["graded_list"]) for x in results if x["difficulty"] == "hard"]
-    for k in [1, 2, 5, 10, 25, 50, 100, 150, 200]:
-        print(
-            f"Pass@{k} = ",
-            estimate_pass_at_k(totals, corrects, k).mean(),
-            # np.array(
-            #     [estimate_pass_at_k(t, c, k) for t, c in zip(totals, corrects)]
-            # ).mean(),
-        )
-        print(
-            f"Easy Pass@{k} = ",
-            estimate_pass_at_k(easy_totals, easy_corrects, k).mean(),
-        )
-        print(
-            f"Medium Pass@{k} = ",
-            estimate_pass_at_k(med_totals, med_corrects, k).mean(),
-        )
-        print(
-            f"Hard Pass@{k} = ",
-            estimate_pass_at_k(hard_totals, hard_corrects, k).mean(),
-        )
-    try:
-        public_corrects = [sum(x["public_graded_list"]) for x in results]
-        public_easy_corrects = [sum(x["public_graded_list"]) for x in results if x["difficulty"] == "easy"]
-        public_med_corrects = [sum(x["public_graded_list"]) for x in results if x["difficulty"] == "medium"]
-        public_hard_corrects = [sum(x["public_graded_list"]) for x in results if x["difficulty"] == "hard"]
-        print(
-            f"After public Pass@1 = ",
-            estimate_pass_at_k(totals, public_corrects, 1).mean(),
-        )
-        print(
-            f"After public Easy Pass@1 = ",
-            estimate_pass_at_k(easy_totals, public_easy_corrects, 1).mean(),
-        )
-        print(
-            f"After public Medium Pass@1 = ",
-            estimate_pass_at_k(med_totals, public_med_corrects, 1).mean(),
-        )
-        print(
-            f"After public Hard Pass@1 = ",
-            estimate_pass_at_k(hard_totals, public_hard_corrects, 1).mean(),
-        )
-        wa = [sum(["error_code\": -2" in y for y in x["metadata"]]) for x in results]
-        easy_wa = [sum(["error_code\": -2" in y for y in x["metadata"]]) for x in results if x["difficulty"] == "easy"]
-        med_wa = [sum(["error_code\": -2" in y for y in x["metadata"]]) for x in results if x["difficulty"] == "medium"]
-        hard_wa = [sum(["error_code\": -2" in y for y in x["metadata"]]) for x in results if x["difficulty"] == "hard"]
-        print(
-            f"WA@1 = ",
-            estimate_pass_at_k(totals, wa, 1).mean(),
-        )
-        print(
-            f"Easy WA@1 = ",
-            estimate_pass_at_k(easy_totals, easy_wa, 1).mean(),
-        )
-        print(
-            f"Medium WA@1 = ",
-            estimate_pass_at_k(med_totals, med_wa, 1).mean(),
-        )
-        print(
-            f"Hard WA@1 = ",
-            estimate_pass_at_k(hard_totals, hard_wa, 1).mean(),
-        )
+    
+    # debug
+    
+    # for k in [1, 2, 5, 10, 25, 50, 100, 150, 200]:
+    #     print(
+    #         f"Pass@{k} = ",
+    #         estimate_pass_at_k(totals, corrects, k).mean(),
+    #         # np.array(
+    #         #     [estimate_pass_at_k(t, c, k) for t, c in zip(totals, corrects)]
+    #         # ).mean(),
+    #     )
+    #     print(
+    #         f"Easy Pass@{k} = ",
+    #         estimate_pass_at_k(easy_totals, easy_corrects, k).mean(),
+    #     )
+    #     print(
+    #         f"Medium Pass@{k} = ",
+    #         estimate_pass_at_k(med_totals, med_corrects, k).mean(),
+    #     )
+    #     print(
+    #         f"Hard Pass@{k} = ",
+    #         estimate_pass_at_k(hard_totals, hard_corrects, k).mean(),
+    #     )
+    
+    # try:
+    #     public_corrects = [sum(x["public_graded_list"]) for x in results]
+    #     public_easy_corrects = [sum(x["public_graded_list"]) for x in results if x["difficulty"] == "easy"]
+    #     public_med_corrects = [sum(x["public_graded_list"]) for x in results if x["difficulty"] == "medium"]
+    #     public_hard_corrects = [sum(x["public_graded_list"]) for x in results if x["difficulty"] == "hard"]
+    #     print(
+    #         f"After public Pass@1 = ",
+    #         estimate_pass_at_k(totals, public_corrects, 1).mean(),
+    #     )
+    #     print(
+    #         f"After public Easy Pass@1 = ",
+    #         estimate_pass_at_k(easy_totals, public_easy_corrects, 1).mean(),
+    #     )
+    #     print(
+    #         f"After public Medium Pass@1 = ",
+    #         estimate_pass_at_k(med_totals, public_med_corrects, 1).mean(),
+    #     )
+    #     print(
+    #         f"After public Hard Pass@1 = ",
+    #         estimate_pass_at_k(hard_totals, public_hard_corrects, 1).mean(),
+    #     )
+    #     wa = [sum(["error_code\": -2" in y for y in x["metadata"]]) for x in results]
+    #     easy_wa = [sum(["error_code\": -2" in y for y in x["metadata"]]) for x in results if x["difficulty"] == "easy"]
+    #     med_wa = [sum(["error_code\": -2" in y for y in x["metadata"]]) for x in results if x["difficulty"] == "medium"]
+    #     hard_wa = [sum(["error_code\": -2" in y for y in x["metadata"]]) for x in results if x["difficulty"] == "hard"]
+    #     print(
+    #         f"WA@1 = ",
+    #         estimate_pass_at_k(totals, wa, 1).mean(),
+    #     )
+    #     print(
+    #         f"Easy WA@1 = ",
+    #         estimate_pass_at_k(easy_totals, easy_wa, 1).mean(),
+    #     )
+    #     print(
+    #         f"Medium WA@1 = ",
+    #         estimate_pass_at_k(med_totals, med_wa, 1).mean(),
+    #     )
+    #     print(
+    #         f"Hard WA@1 = ",
+    #         estimate_pass_at_k(hard_totals, hard_wa, 1).mean(),
+    #     )
 
-        for idx in detail_results.keys():
-            if check_list(find_most_common_list(detail_results[idx], results[int(idx)]["public_graded_list"], use_public_output=False)):
-                results[int(idx)]['cot_corrects'] = [True]
-            else:
-                results[int(idx)]['cot_corrects'] = [False]
-        codecot_corrects = [sum(x["cot_corrects"]) for x in results]
-        codecot_easy_corrects = [sum(x["cot_corrects"]) for x in results if x["difficulty"] == "easy"]
-        codecot_med_corrects = [sum(x["cot_corrects"]) for x in results if x["difficulty"] == "medium"]
-        codecot_hard_corrects = [sum(x["cot_corrects"]) for x in results if x["difficulty"] == "hard"]
-        codecot_totals = [len(x["cot_corrects"]) for x in results]
-        codecot_easy_totals = [len(x["cot_corrects"]) for x in results if x["difficulty"] == "easy"]
-        codecot_med_totals = [len(x["cot_corrects"]) for x in results if x["difficulty"] == "medium"]
-        codecot_hard_totals = [len(x["cot_corrects"]) for x in results if x["difficulty"] == "hard"]
-        print(
-            f"CodeCoT Pass@1 = ",
-            estimate_pass_at_k(codecot_totals, codecot_corrects, 1).mean(),
-        )
-        print(
-            f"CodeCoT Easy Pass@1 = ",
-            estimate_pass_at_k(codecot_easy_totals, codecot_easy_corrects, 1).mean(),
-        )
-        print(
-            f"CodeCoT Medium Pass@1 = ",
-            estimate_pass_at_k(codecot_med_totals, codecot_med_corrects, 1).mean(),
-        )
-        print(
-            f"CodeCoT Hard Pass@1 = ",
-            estimate_pass_at_k(codecot_hard_totals, codecot_hard_corrects, 1).mean(),
-        )
+    #     for idx in detail_results.keys():
+    #         if check_list(find_most_common_list(detail_results[idx], results[int(idx)]["public_graded_list"], use_public_output=False)):
+    #             results[int(idx)]['cot_corrects'] = [True]
+    #         else:
+    #             results[int(idx)]['cot_corrects'] = [False]
+    #     codecot_corrects = [sum(x["cot_corrects"]) for x in results]
+    #     codecot_easy_corrects = [sum(x["cot_corrects"]) for x in results if x["difficulty"] == "easy"]
+    #     codecot_med_corrects = [sum(x["cot_corrects"]) for x in results if x["difficulty"] == "medium"]
+    #     codecot_hard_corrects = [sum(x["cot_corrects"]) for x in results if x["difficulty"] == "hard"]
+    #     codecot_totals = [len(x["cot_corrects"]) for x in results]
+    #     codecot_easy_totals = [len(x["cot_corrects"]) for x in results if x["difficulty"] == "easy"]
+    #     codecot_med_totals = [len(x["cot_corrects"]) for x in results if x["difficulty"] == "medium"]
+    #     codecot_hard_totals = [len(x["cot_corrects"]) for x in results if x["difficulty"] == "hard"]
+    #     print(
+    #         f"CodeCoT Pass@1 = ",
+    #         estimate_pass_at_k(codecot_totals, codecot_corrects, 1).mean(),
+    #     )
+    #     print(
+    #         f"CodeCoT Easy Pass@1 = ",
+    #         estimate_pass_at_k(codecot_easy_totals, codecot_easy_corrects, 1).mean(),
+    #     )
+    #     print(
+    #         f"CodeCoT Medium Pass@1 = ",
+    #         estimate_pass_at_k(codecot_med_totals, codecot_med_corrects, 1).mean(),
+    #     )
+    #     print(
+    #         f"CodeCoT Hard Pass@1 = ",
+    #         estimate_pass_at_k(codecot_hard_totals, codecot_hard_corrects, 1).mean(),
+    #     )
         
-        for idx in detail_results.keys():
-            if check_list(find_most_common_list(detail_results[idx], results[int(idx)]["public_graded_list"], use_public_output=True)):
-                results[int(idx)]['cot_corrects'] = [True]
-            else:
-                results[int(idx)]['cot_corrects'] = [False]
-        codecot_corrects = [sum(x["cot_corrects"]) for x in results]
-        codecot_easy_corrects = [sum(x["cot_corrects"]) for x in results if x["difficulty"] == "easy"]
-        codecot_med_corrects = [sum(x["cot_corrects"]) for x in results if x["difficulty"] == "medium"]
-        codecot_hard_corrects = [sum(x["cot_corrects"]) for x in results if x["difficulty"] == "hard"]
-        print(
-            f"CodeCoT Publicused Pass@1 = ",
-            estimate_pass_at_k(codecot_totals, codecot_corrects, 1).mean(),
-        )
-        print(
-            f"CodeCoT Publicused Easy Pass@1 = ",
-            estimate_pass_at_k(codecot_easy_totals, codecot_easy_corrects, 1).mean(),
-        )
-        print(
-            f"CodeCoT Publicused Medium Pass@1 = ",
-            estimate_pass_at_k(codecot_med_totals, codecot_med_corrects, 1).mean(),
-        )
-        print(
-            f"CodeCoT Publicused Hard Pass@1 = ",
-            estimate_pass_at_k(codecot_hard_totals, codecot_hard_corrects, 1).mean(),
-        )
-    except:
-        print("If this is not test for code generation, It is normal.")
+    #     for idx in detail_results.keys():
+    #         if check_list(find_most_common_list(detail_results[idx], results[int(idx)]["public_graded_list"], use_public_output=True)):
+    #             results[int(idx)]['cot_corrects'] = [True]
+    #         else:
+    #             results[int(idx)]['cot_corrects'] = [False]
+    #     codecot_corrects = [sum(x["cot_corrects"]) for x in results]
+    #     codecot_easy_corrects = [sum(x["cot_corrects"]) for x in results if x["difficulty"] == "easy"]
+    #     codecot_med_corrects = [sum(x["cot_corrects"]) for x in results if x["difficulty"] == "medium"]
+    #     codecot_hard_corrects = [sum(x["cot_corrects"]) for x in results if x["difficulty"] == "hard"]
+    #     print(
+    #         f"CodeCoT Publicused Pass@1 = ",
+    #         estimate_pass_at_k(codecot_totals, codecot_corrects, 1).mean(),
+    #     )
+    #     print(
+    #         f"CodeCoT Publicused Easy Pass@1 = ",
+    #         estimate_pass_at_k(codecot_easy_totals, codecot_easy_corrects, 1).mean(),
+    #     )
+    #     print(
+    #         f"CodeCoT Publicused Medium Pass@1 = ",
+    #         estimate_pass_at_k(codecot_med_totals, codecot_med_corrects, 1).mean(),
+    #     )
+    #     print(
+    #         f"CodeCoT Publicused Hard Pass@1 = ",
+    #         estimate_pass_at_k(codecot_hard_totals, codecot_hard_corrects, 1).mean(),
+    #     )
+    # except:
+    #     print("If this is not test for code generation, It is normal.")
 
     pass_1_list = [result["pass@1"] for result in results]
     print(f"Pass@1: {sum(pass_1_list) / len(pass_1_list)}")
