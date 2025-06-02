@@ -206,7 +206,7 @@ def execute_inputer_script(script_code: str, num_executions: int = 5, timeout_se
 
 
 def format_prompt_inputer_generate(
-    question: str, LanguageModelStyle: LMStyle, code: str, platform_and_samples # results was unused, removed
+    question: str, LanguageModelStyle: LMStyle, code: str, results, platform_and_samples # results was unused, removed
 ) -> str:
     platform, samples_dict = platform_and_samples # Unpack the tuple
     # Extract example input string from samples_dict
@@ -268,17 +268,17 @@ def test():
 
     # Test DeepSeekR1
     print("\n--- Test Case 1: DeepSeekR1 - HumanEval ---")
-    prompt_dsr1_he = format_prompt_inputer_generate(test_question_he, LMStyle.DeepSeekR1, test_code_he, (Platform.HUMANEVAL, test_samples_he))
+    prompt_dsr1_he = format_prompt_inputer_generate(test_question_he, LMStyle.DeepSeekR1, test_code_he, False, (Platform.HUMANEVAL, test_samples_he))
     print(prompt_dsr1_he)
 
     # Test DeepSeekCodeInstruct
     print("\n--- Test Case 2: DeepSeekCodeInstruct - LeetCode ---")
-    prompt_dsci_lc = format_prompt_inputer_generate(test_question_lc, LMStyle.DeepSeekCodeInstruct, test_code_lc, (Platform.LEETCODE, test_samples_lc))
+    prompt_dsci_lc = format_prompt_inputer_generate(test_question_lc, LMStyle.DeepSeekCodeInstruct, test_code_lc, False, (Platform.LEETCODE, test_samples_lc))
     print(prompt_dsci_lc)
 
     # Test CodeQwenInstruct
     print("\n--- Test Case 3: CodeQwenInstruct - Codeforces ---")
-    prompt_cq_cf = format_prompt_inputer_generate(test_question_cf, LMStyle.CodeQwenInstruct, test_code_cf, (Platform.CODEFORCES, test_samples_cf))
+    prompt_cq_cf = format_prompt_inputer_generate(test_question_cf, LMStyle.CodeQwenInstruct, test_code_cf, False, (Platform.CODEFORCES, test_samples_cf))
     print(prompt_cq_cf)
 
 
