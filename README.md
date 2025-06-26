@@ -1,4 +1,3 @@
-## Now, all links are anonymous, some functions may be restricted.
 ## The full version will come soon
 
 ## Prepare Environment
